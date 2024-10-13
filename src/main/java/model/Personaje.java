@@ -10,12 +10,19 @@ public abstract class Personaje {
     protected List<Recurso> inventario;
     protected Refugio refugioAsignado;
     protected static RecursosManager recursosManager = RecursosManager.getInstance();
+    protected boolean enfermo;
+    protected boolean enfermedadGrave;
+    protected String tipoEnfermedad;
+    
 
     public Personaje(String nombre) {
         this.nombre = nombre;
         this.nivelEnergia = 100;
         this.nivelSalud = 100;
         this.inventario = new ArrayList<>();
+        this.enfermo = false;
+        this.enfermedadGrave = false;
+        this.tipoEnfermedad = null;
     }
 
     public abstract void accionar();
@@ -31,15 +38,18 @@ public abstract class Personaje {
     }
 
    public void descansar() {
-        if (refugioAsignado != null) {
-            nivelEnergia += 25; // Aumentamos la recuperación de energía en el refugio
-            if (nivelEnergia > 100) nivelEnergia = 100;
-            System.out.println(nombre + " ha descansado en el refugio y recuperado 25 puntos de energía.");
-        } else {
-            nivelEnergia += 10;
-            if (nivelEnergia > 100) nivelEnergia = 100;
-            System.out.println(nombre + " ha descansado sin refugio y recuperado 10 puntos de energía.");
+        int recuperacion = 15;
+        if (enfermo) {
+            recuperacion = enfermedadGrave ? 5 : 10;
         }
+        
+        if (refugioAsignado != null) {
+            if (refugioAsignado.getEstabilidad() >= 70) {
+                recuperacion += 5;
+            }
+        }
+        
+        recuperarEnergia(recuperacion);
     }
 
     public void reducirEnergia(int cantidad) {
@@ -88,8 +98,41 @@ public abstract class Personaje {
         }
     }
     
+    public void curar() {
+        this.enfermo = false;
+        this.enfermedadGrave = false;
+        this.tipoEnfermedad = null;
+        System.out.println(nombre + " ha sido curado de su enfermedad");
+    }
+    
+    public void contraerEnfermedad(String tipo, boolean grave) {
+        this.enfermo = true;
+        this.enfermedadGrave = grave;
+        this.tipoEnfermedad = tipo;
+        System.out.println(nombre + " ha contraído " + tipo + (grave ? " (grave)" : " (leve)"));
+    }
+    
 
     // Getters y setters
+    
+     public String getTipoEnfermedad() {
+        return tipoEnfermedad;
+    }
+     public boolean isEnfermo() {
+        return enfermo;
+    }
+    
+    public void setEnfermo(boolean enfermo) {
+        this.enfermo = enfermo;
+    }
+    
+    public boolean isEnfermedadGrave() {
+        return enfermedadGrave;
+    }
+    
+    public void setEnfermedadGrave(boolean enfermedadGrave) {
+        this.enfermedadGrave = enfermedadGrave;
+    }
     public String getNombre() {
         return nombre;
     }
@@ -114,12 +157,18 @@ public abstract class Personaje {
         this.refugioAsignado = refugioAsignado;
     }
 
-    @Override
+     @Override
     public String toString() {
-        return "Nombre: " + nombre + "\n" +
-               "Nivel de Energía: " + nivelEnergia + "\n" +
-               "Nivel de Salud: " + nivelSalud + "\n" +
-               "Inventario: " + inventarioToString();
+        StringBuilder info = new StringBuilder();
+        info.append("Nombre: ").append(nombre).append("\n");
+        info.append("Nivel de Energía: ").append(nivelEnergia).append("\n");
+        info.append("Nivel de Salud: ").append(nivelSalud).append("\n");
+        if (enfermo) {
+            info.append("Estado: Enfermo - ").append(tipoEnfermedad)
+                .append(enfermedadGrave ? " (grave)" : " (leve)").append("\n");
+        }
+        info.append("Inventario: ").append(inventarioToString());
+        return info.toString();
     }
 
     private String inventarioToString() {

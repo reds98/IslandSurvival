@@ -60,26 +60,36 @@ public class IslandSurvival extends JFrame {
         
         // Inicializar los mapas en el Dios
         dios.setMaps(recursosEnMapa, animalesEnMapa, refugiosEnMapa, personajes);
+        dios.setPositions(posicionesPersonajes);
         
         setVisible(true);
     }
 
-    private void cargarImagenes() {
-        imagenes = new HashMap<>();
-        String[] tipos = {"cazador", "explorador", "recolector", "constructor", "curandero", "cientifico",
-                         "madera", "piedra", "fruta", "carne", "planta_medicinal", "agua",
-                         "conejo", "ciervo", "lobo", "oso", "cabin"};
-        for (String tipo : tipos) {
-            String ruta = "/images/" + tipo + ".png";
-            ImageIcon imagen = new ImageIcon(getClass().getResource(ruta));
-            if (tipo.equals("cabin")) {
-                imagen = new ImageIcon(imagen.getImage().getScaledInstance(48, 48, Image.SCALE_SMOOTH));
-            } else {
-                imagen = new ImageIcon(imagen.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH));
-            }
-            imagenes.put(tipo, imagen);
+  private void cargarImagenes() {
+    imagenes = new HashMap<>();
+    String[] tipos = {
+        "cazador", "explorador", "recolector", "constructor", "curandero", "cientifico",
+        "madera", "piedra", "fruta", "planta medicinal", "agua", "carne",
+        "conejo", "ciervo", "lobo", "oso", "cabin"
+    };
+    
+    for (String tipo : tipos) {
+        String ruta = "/images/" + tipo + ".png";
+        ImageIcon imagen = new ImageIcon(getClass().getResource(ruta));
+        // Ajustar tamaño según el tipo
+        if (tipo.equals("cabin")) {
+            imagen = new ImageIcon(imagen.getImage().getScaledInstance(48, 48, Image.SCALE_SMOOTH));
+        } else {
+            imagen = new ImageIcon(imagen.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH));
+        }
+        imagenes.put(tipo, imagen);
+        
+        // Verificar que la imagen se cargó correctamente
+        if (imagen.getImageLoadStatus() != MediaTracker.COMPLETE) {
+            System.out.println("Error al cargar la imagen: " + tipo);
         }
     }
+}
 
     private void initComponents() {
         setLayout(new BorderLayout());
@@ -157,6 +167,22 @@ public class IslandSurvival extends JFrame {
         personajes = new HashMap<>();
         posicionesPersonajes = new HashMap<>();
     }
+    
+    
+    private void descansar(String name) {
+    Personaje personaje = personajes.get(name);
+    if (personaje.getRefugioAsignado() != null) {
+        personaje.descansar();
+        registrarEnBitacora(name, "Ha descansado en el refugio y recuperado energía. " +
+                          "Energía actual: " + personaje.getNivelEnergia());
+        actualizarEstadoJuego();
+    } else {
+        JOptionPane.showMessageDialog(this, 
+            "El personaje debe estar en un refugio para descansar.",
+            "No puede descansar",
+            JOptionPane.WARNING_MESSAGE);
+    }
+}
 
     private void handleDiosAction() {
         JDialog diosDialog = new JDialog(this, "Controles de Dios", true);
@@ -266,16 +292,18 @@ private void showCharacterControls(String name) {
     Personaje personaje = personajes.get(name);
 
     // Calcular número de botones base y específicos
-    int numButtons = 11; // Botones básicos
+    int numButtons = 12; // Botones básicos (incluye descansar)
     if (personaje instanceof Cazador) {
         numButtons = 14; // Básicos + Cazar + Defender
+    } else if (personaje instanceof Constructor) {
+        numButtons = 15; // Básicos + Construir + Reparar + Ver Estado
     } else if (personaje instanceof Recolector) {
-        numButtons = 13; // Básicos + Recolectar + Entregar
+        numButtons = 14; // Básicos + Recolectar + Entregar
     } else if (personaje instanceof Explorador) {
-        numButtons = 13; // Básicos + Explorar + Recolectar
+        numButtons = 14; // Básicos + Explorar + Recolectar
     }
 
-    controlDialog.setLayout(new GridLayout(numButtons, 1));
+    controlDialog.setLayout(new GridLayout(numButtons, 1, 5, 5));
 
     // Botones de movimiento (para todos)
     JButton moveUpButton = new JButton("Mover Arriba");
@@ -318,6 +346,19 @@ private void showCharacterControls(String name) {
         defenderButton.addActionListener(e -> defenderDeDepredador(name));
         controlDialog.add(defenderButton);
     } 
+    else if (personaje instanceof Constructor) {
+        JButton construirRefugioButton = new JButton("Construir Refugio");
+        construirRefugioButton.addActionListener(e -> construirRefugio(name));
+        controlDialog.add(construirRefugioButton);
+
+        JButton repararRefugioButton = new JButton("Reparar Refugio");
+        repararRefugioButton.addActionListener(e -> repararRefugio(name));
+        controlDialog.add(repararRefugioButton);
+
+        JButton verEstadoRefugioButton = new JButton("Ver Estado del Refugio");
+        verEstadoRefugioButton.addActionListener(e -> mostrarEstadoRefugio(name));
+        controlDialog.add(verEstadoRefugioButton);
+    }
     else if (personaje instanceof Recolector) {
         JButton recolectarButton = new JButton("Recolectar");
         recolectarButton.addActionListener(e -> recolectar(name));
@@ -328,7 +369,7 @@ private void showCharacterControls(String name) {
         controlDialog.add(entregarButton);
     }
 
-    // Botones comunes para todos
+    // Botones comunes para todos los personajes
     JButton eatButton = new JButton("Comer");
     eatButton.addActionListener(e -> eat(name));
     controlDialog.add(eatButton);
@@ -341,10 +382,20 @@ private void showCharacterControls(String name) {
     salirRefugioButton.addActionListener(e -> salirRefugio(name));
     controlDialog.add(salirRefugioButton);
 
+    // Botón de descansar (nuevo)
+    JButton descanarButton = new JButton("Descansar");
+    descanarButton.addActionListener(e -> descansar(name));
+    controlDialog.add(descanarButton);
+
     JButton statsButton = new JButton("Ver Estadísticas");
     statsButton.addActionListener(e -> showStats(name));
     controlDialog.add(statsButton);
 
+    JButton cerrarButton = new JButton("Cerrar");
+    cerrarButton.addActionListener(e -> controlDialog.dispose());
+    controlDialog.add(cerrarButton);
+
+    // Configuración final del diálogo
     controlDialog.pack();
     controlDialog.setLocationRelativeTo(this);
     controlDialog.setVisible(true);
@@ -510,48 +561,64 @@ private void defenderDeDepredador(String name) {
         entregaDialog.setVisible(true);
     }
 
-    private void updateMapCell(int x, int y) {
-        if (!descubierto[y][x]) return;
-        
-        Point p = new Point(x, y);
-        Set<String> charactersAtPoint = posicionesPersonajes.getOrDefault(p, new HashSet<>());
-        List<Recurso> recursosEnPunto = recursosEnMapa.getOrDefault(p, new ArrayList<>());
-        Animal animalEnPunto = animalesEnMapa.get(p);
-        Refugio refugioEnPunto = refugiosEnMapa.get(p);
-        
-        mapCells[y][x].removeAll();
-        mapCells[y][x].setBackground(hayTormenta ? new Color(0, 100, 0) : Color.GREEN);
-
-        // Mostrar personajes
-        for (String name : charactersAtPoint) {
-            Personaje personaje = personajes.get(name);
-            if (personaje != null) {
-                JLabel label = new JLabel(imagenes.get(personaje.getClass().getSimpleName().toLowerCase()));
-                mapCells[y][x].add(label);
-            }
-        }
-
-        // Mostrar recursos
-        for (Recurso recurso : recursosEnPunto) {
-            JLabel label = new JLabel(imagenes.get(recurso.getTipo()));
+  private void updateMapCell(int x, int y) {
+    if (!descubierto[y][x]) return;
+    
+    Point p = new Point(x, y);
+    Set<String> charactersAtPoint = posicionesPersonajes.getOrDefault(p, new HashSet<>());
+    List<Recurso> recursosEnPunto = recursosEnMapa.getOrDefault(p, new ArrayList<>());
+    Animal animalEnPunto = animalesEnMapa.get(p);
+    Refugio refugioEnPunto = refugiosEnMapa.get(p);
+    
+    mapCells[y][x].removeAll();
+    mapCells[y][x].setBackground(hayTormenta ? new Color(0, 100, 0) : Color.GREEN);
+    
+    // Usar GridLayout 3x3 para mejor distribución
+    mapCells[y][x].setLayout(new GridLayout(3, 3, 1, 1));
+    
+    // Añadir personajes
+    for (String name : charactersAtPoint) {
+        Personaje personaje = personajes.get(name);
+        if (personaje != null) {
+            JLabel label = new JLabel(imagenes.get(personaje.getClass().getSimpleName().toLowerCase()));
+            label.setToolTipText(name);
             mapCells[y][x].add(label);
         }
-
-        // Mostrar animal
-        if (animalEnPunto != null) {
-            JLabel label = new JLabel(imagenes.get(animalEnPunto.getTipoAnimal()));
-            mapCells[y][x].add(label);
-        }
-
-        // Mostrar refugio
-        if (refugioEnPunto != null) {
-            JLabel refugioLabel = new JLabel(imagenes.get("cabin"));
-            mapCells[y][x].add(refugioLabel);
-        }
-
-        mapCells[y][x].revalidate();
-        mapCells[y][x].repaint();
     }
+    
+    // Añadir recursos
+    for (Recurso recurso : recursosEnPunto) {
+        ImageIcon icon = imagenes.get(recurso.getTipo());
+        if (icon != null) {
+            JLabel label = new JLabel(icon);
+            label.setToolTipText(recurso.getTipo() + ": " + recurso.getCantidad());
+            mapCells[y][x].add(label);
+        }
+    }
+    
+    // Añadir animal
+    if (animalEnPunto != null) {
+        JLabel label = new JLabel(imagenes.get(animalEnPunto.getTipoAnimal()));
+        label.setToolTipText(animalEnPunto.getTipoAnimal());
+        mapCells[y][x].add(label);
+    }
+    
+    // Añadir refugio
+    if (refugioEnPunto != null) {
+        JLabel label = new JLabel(imagenes.get("cabin"));
+        label.setToolTipText("Refugio (Estabilidad: " + refugioEnPunto.getEstabilidad() + "%)");
+        mapCells[y][x].add(label);
+    }
+
+    // Rellenar espacios vacíos si es necesario
+    int componentCount = mapCells[y][x].getComponentCount();
+    for (int i = componentCount; i < 9; i++) {
+        mapCells[y][x].add(new JLabel());
+    }
+
+    mapCells[y][x].revalidate();
+    mapCells[y][x].repaint();
+}
 
     private void moveCharacter(String name, int dx, int dy) {
         Point currentPos = null;
@@ -603,34 +670,32 @@ private void defenderDeDepredador(String name) {
     }
 
     private void performExploration(String name) {
-        Personaje personaje = personajes.get(name);
-        if (personaje instanceof Explorador) {
-            Explorador explorador = (Explorador) personaje;
-            Point position = getCharacterPosition(name);
-            if (position != null) {
-                explorador.explorar();
-                descubrirArea(position.x, position.y);
+    Personaje personaje = personajes.get(name);
+    if (personaje instanceof Explorador) {
+        Explorador explorador = (Explorador) personaje;
+        Point position = getCharacterPosition(name);
+        
+        if (position != null) {
+            explorador.explorar();
+            descubrirArea(position.x, position.y);
 
-                // Ahora los recursos descubiertos se agregan al mapa, no al inventario
-                List<Recurso> recursosEncontrados = explorador.descubrirRecursos();
-                if (!recursosEncontrados.isEmpty()) {
-                    recursosEnMapa.computeIfAbsent(position, k -> new ArrayList<>())
-                                .addAll(recursosEncontrados);
-                }
+            // Añadir recursos encontrados al mapa
+            List<Recurso> recursosEncontrados = explorador.descubrirRecursos();
+            recursosEnMapa.computeIfAbsent(position, k -> new ArrayList<>())
+                         .addAll(recursosEncontrados);
 
-                if (Math.random() < 0.3) {
-                    Animal animalDescubierto = explorador.descubrirAnimal();
-                    animalesEnMapa.put(position, animalDescubierto);
-                    registrarEnBitacora(name, "Ha descubierto un " + animalDescubierto.getTipoAnimal());
-                }
+            // Siempre añadir un animal
+            Animal animalDescubierto = explorador.descubrirAnimal();
+            animalesEnMapa.put(position, animalDescubierto);
 
-                updateMapCell(position.x, position.y);
-                registrarEnBitacora(name, "Ha explorado el área y encontrado recursos");
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, "Solo los exploradores pueden realizar esta acción.");
+            updateMapCell(position.x, position.y);
+            registrarEnBitacora(name, "Ha explorado el área y encontrado recursos y un animal");
+            actualizarEstadoJuego();
         }
+    } else {
+        JOptionPane.showMessageDialog(this, "Solo los exploradores pueden realizar esta acción.");
     }
+}
 
  private void collectResources(String name) {
     Personaje personaje = personajes.get(name);
@@ -690,23 +755,47 @@ private void defenderDeDepredador(String name) {
     }
 
     private void iniciarTormenta() {
+    if (!dios.isHayTormenta()) {
         hayTormenta = true;
         climaLabel.setText("Clima: ¡TORMENTA!");
         climaLabel.setForeground(Color.RED);
+        
+        // Cambiar color del mapa
+        for (int i = 0; i < MAP_SIZE; i++) {
+            for (int j = 0; j < MAP_SIZE; j++) {
+                if (descubierto[i][j]) {
+                    mapCells[i][j].setBackground(new Color(0, 100, 0));
+                }
+            }
+        }
+        
         dios.generarTormenta();
         actualizarEstadoJuego();
         
-        Timer tormentaTimer = new Timer(20000, e -> finalizarTormenta());
-        tormentaTimer.setRepeats(false);
-        tormentaTimer.start();
+        // Timer para restaurar la visualización
+        Timer visualTimer = new Timer(dios.DURACION_TORMENTA, e -> {
+            finalizarTormenta();
+        });
+        visualTimer.setRepeats(false);
+        visualTimer.start();
     }
+}
 
     private void finalizarTormenta() {
-        hayTormenta = false;
-        climaLabel.setText("Clima: Normal");
-        climaLabel.setForeground(Color.BLACK);
-        actualizarEstadoJuego();
+    hayTormenta = false;
+    climaLabel.setText("Clima: Normal");
+    climaLabel.setForeground(Color.BLACK);
+    
+    // Restaurar color del mapa
+    for (int i = 0; i < MAP_SIZE; i++) {
+        for (int j = 0; j < MAP_SIZE; j++) {
+            if (descubierto[i][j]) {
+                mapCells[i][j].setBackground(Color.GREEN);
+            }
+        }
     }
+    actualizarEstadoJuego();
+}
 
     private void generarAccidente() {
         if (personajes.isEmpty()) {
@@ -877,14 +966,56 @@ private void defenderDeDepredador(String name) {
 }
 
     private void generarRecursoAleatorio() {
-        String[] tiposRecursos = {"madera", "piedra", "fruta", "planta medicinal", "agua"};
-        Point posicion = new Point(random.nextInt(MAP_SIZE), random.nextInt(MAP_SIZE));
-        String tipoRecurso = tiposRecursos[random.nextInt(tiposRecursos.length)];
-        int cantidad = 1 + random.nextInt(5);
+    JDialog dialogoRecurso = new JDialog(this, "Generar Recurso", true);
+    dialogoRecurso.setLayout(new GridLayout(0, 1, 5, 5));
+
+    // Array de tipos de recursos disponibles
+    String[] tiposRecursos = {"madera", "piedra", "fruta", "planta medicinal", "agua"};
+    
+    // Combobox para seleccionar tipo de recurso
+    JComboBox<String> comboTipoRecurso = new JComboBox<>(tiposRecursos);
+    
+    // Spinner para la cantidad
+    SpinnerNumberModel modeloCantidad = new SpinnerNumberModel(1, 1, 10, 1);
+    JSpinner spinnerCantidad = new JSpinner(modeloCantidad);
+    
+    // Spinners para coordenadas
+    SpinnerNumberModel modeloX = new SpinnerNumberModel(0, 0, MAP_SIZE-1, 1);
+    SpinnerNumberModel modeloY = new SpinnerNumberModel(0, 0, MAP_SIZE-1, 1);
+    JSpinner spinnerX = new JSpinner(modeloX);
+    JSpinner spinnerY = new JSpinner(modeloY);
+    
+    // Añadir componentes al diálogo
+    dialogoRecurso.add(new JLabel("Tipo de recurso:"));
+    dialogoRecurso.add(comboTipoRecurso);
+    dialogoRecurso.add(new JLabel("Cantidad:"));
+    dialogoRecurso.add(spinnerCantidad);
+    dialogoRecurso.add(new JLabel("Coordenada X:"));
+    dialogoRecurso.add(spinnerX);
+    dialogoRecurso.add(new JLabel("Coordenada Y:"));
+    dialogoRecurso.add(spinnerY);
+    
+    // Botón para generar
+    JButton botonGenerar = new JButton("Generar");
+    botonGenerar.addActionListener(e -> {
+        String tipoRecurso = (String) comboTipoRecurso.getSelectedItem();
+        int cantidad = (Integer) spinnerCantidad.getValue();
+        int x = (Integer) spinnerX.getValue();
+        int y = (Integer) spinnerY.getValue();
         
+        Point posicion = new Point(x, y);
         dios.generarRecurso(posicion, tipoRecurso, cantidad);
-        updateMapCell(posicion.x, posicion.y);
-    }
+        updateMapCell(x, y);
+        dialogoRecurso.dispose();
+    });
+    
+    dialogoRecurso.add(botonGenerar);
+    
+    // Configurar y mostrar el diálogo
+    dialogoRecurso.pack();
+    dialogoRecurso.setLocationRelativeTo(this);
+    dialogoRecurso.setVisible(true);
+}
 
     private void registrarEnBitacora(String nombrePersonaje, String evento) {
         if (!bitacoras.containsKey(nombrePersonaje)) {
@@ -982,73 +1113,147 @@ private void defenderDeDepredador(String name) {
         JOptionPane.showMessageDialog(this, infoRefugios.toString());
     }
 
-    private void entrarRefugio(String name) {
-        Personaje personaje = personajes.get(name);
-        Point position = getCharacterPosition(name);
-        if (position != null) {
-            Refugio refugio = refugiosEnMapa.get(position);
-            if (refugio != null) {
-                if (refugio.añadirPersonaje(personaje)) {
-                    posicionesPersonajes.get(position).remove(name);
-                    updateMapCell(position.x, position.y);
-                    registrarEnBitacora(name, "Ha entrado al refugio");
-                }
+  private void entrarRefugio(String name) {
+    Personaje personaje = personajes.get(name);
+    Point position = getCharacterPosition(name);
+    if (position != null) {
+        Refugio refugio = refugiosEnMapa.get(position);
+        if (refugio != null) {
+            if (refugio.añadirPersonaje(personaje)) {
+                posicionesPersonajes.get(position).remove(name);
+                updateMapCell(position.x, position.y);
+                
+                StringBuilder mensaje = new StringBuilder();
+                mensaje.append(name).append(" ha entrado al refugio.\n");
+                mensaje.append("Estado del refugio: ").append(refugio.getEstabilidad()).append("%\n");
+                mensaje.append("Use el botón 'Descansar' para recuperar energía.");
+                
+                registrarEnBitacora(name, "Ha entrado al refugio");
+                JOptionPane.showMessageDialog(this, mensaje.toString(), 
+                    "Entrada al refugio", JOptionPane.INFORMATION_MESSAGE);
+                actualizarEstadoJuego();
             } else {
-                JOptionPane.showMessageDialog(this, "No hay un refugio en esta posición.");
-            }
-        }
-    }
-
-    private void salirRefugio(String name) {
-        Personaje personaje = personajes.get(name);
-        if (personaje.getRefugioAsignado() != null) {
-            for (Map.Entry<Point, Refugio> entry : refugiosEnMapa.entrySet()) {
-                if (entry.getValue() == personaje.getRefugioAsignado()) {
-                    Point position = entry.getKey();
-                    if (personaje.getRefugioAsignado().eliminarPersonaje(personaje)) {
-                        posicionesPersonajes.computeIfAbsent(position, k -> new HashSet<>()).add(name);
-                        updateMapCell(position.x, position.y);
-                        registrarEnBitacora(name, "Ha salido del refugio");
-                    }
-                    break;
-                }
+                JOptionPane.showMessageDialog(this, 
+                    "El refugio está lleno o no se puede entrar en este momento.",
+                    "Error al entrar",
+                    JOptionPane.WARNING_MESSAGE);
             }
         } else {
-            JOptionPane.showMessageDialog(this, name + " no está en un refugio.");
+            JOptionPane.showMessageDialog(this, "No hay un refugio en esta posición.");
         }
     }
+}
 
-    private void construirRefugio(String name) {
-        Constructor constructor = (Constructor) personajes.get(name);
-        Point position = getCharacterPosition(name);
-        if (position != null) {
-            if (!refugiosEnMapa.containsKey(position)) {
-                constructor.construirRefugio();
-                if (constructor.getRefugioAsignado() != null) {
-                    refugiosEnMapa.put(position, constructor.getRefugioAsignado());
+   private void salirRefugio(String name) {
+    Personaje personaje = personajes.get(name);
+    if (personaje.getRefugioAsignado() != null) {
+        for (Map.Entry<Point, Refugio> entry : refugiosEnMapa.entrySet()) {
+            if (entry.getValue() == personaje.getRefugioAsignado()) {
+                Point position = entry.getKey();
+                if (personaje.getRefugioAsignado().eliminarPersonaje(personaje)) {
+                    posicionesPersonajes.computeIfAbsent(position, k -> new HashSet<>()).add(name);
                     updateMapCell(position.x, position.y);
-                    registrarEnBitacora(name, "Ha construido un nuevo refugio");
+                    registrarEnBitacora(name, "Ha salido del refugio");
+                    actualizarEstadoJuego();
                 }
-            } else {
-                JOptionPane.showMessageDialog(this, "Ya existe un refugio en esta posición.");
+                break;
             }
         }
+    } else {
+        JOptionPane.showMessageDialog(this, 
+            name + " no está en un refugio.",
+            "Error al salir",
+            JOptionPane.WARNING_MESSAGE);
+    }
+}
+
+  private void construirRefugio(String name) {
+    Constructor constructor = (Constructor) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    // Verificar si ya existe un refugio en esta posición
+    if (refugiosEnMapa.containsKey(position)) {
+        JOptionPane.showMessageDialog(this, 
+            "Ya existe un refugio en esta posición.",
+            "Error de construcción",
+            JOptionPane.ERROR_MESSAGE);
+        return;
     }
 
-    private void repararRefugio(String name) {
-        Constructor constructor = (Constructor) personajes.get(name);
-        Point position = getCharacterPosition(name);
-        if (position != null) {
-            Refugio refugio = refugiosEnMapa.get(position);
-            if (refugio != null) {
-                constructor.setRefugioAsignado(refugio);
-                constructor.repararRefugio();
-                registrarEnBitacora(name, "Ha reparado el refugio. Nueva estabilidad: " + refugio.getEstabilidad());
-            } else {
-                JOptionPane.showMessageDialog(this, "No hay un refugio en esta posición para reparar.");
-            }
-        }
+    // Intentar construir el refugio
+    if (constructor.construirRefugio()) {
+        refugiosEnMapa.put(position, constructor.getRefugioAsignado());
+        updateMapCell(position.x, position.y);
+        registrarEnBitacora(name, "Ha construido un nuevo refugio en (" + 
+                          position.x + ", " + position.y + ")");
+        actualizarEstadoJuego();
+    } else {
+        JOptionPane.showMessageDialog(this, 
+            "No hay suficientes materiales o energía para construir un refugio.",
+            "Error de construcción",
+            JOptionPane.WARNING_MESSAGE);
     }
+}
+
+  private void repararRefugio(String name) {
+    Constructor constructor = (Constructor) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    Refugio refugio = refugiosEnMapa.get(position);
+    if (refugio == null) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay un refugio en esta posición para reparar.",
+            "Error de reparación",
+            JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    constructor.setRefugioAsignado(refugio);
+    if (constructor.repararRefugio()) {
+        registrarEnBitacora(name, 
+            "Ha reparado el refugio. Nueva estabilidad: " + refugio.getEstabilidad());
+        actualizarEstadoJuego();
+    } else {
+        JOptionPane.showMessageDialog(this, 
+            "No hay suficientes materiales o energía para reparar el refugio.",
+            "Error de reparación",
+            JOptionPane.WARNING_MESSAGE);
+    }
+}
+    private void mostrarEstadoRefugio(String name) {
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    Refugio refugio = refugiosEnMapa.get(position);
+    if (refugio == null) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay un refugio en esta posición.",
+            "Estado del refugio",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+    StringBuilder estado = new StringBuilder();
+    estado.append("Estado del refugio:\n\n");
+    estado.append("Estabilidad: ").append(refugio.getEstabilidad()).append("%\n");
+    estado.append("Capacidad: ").append(refugio.getCapacidad()).append(" personas\n");
+    estado.append("Ocupantes actuales: ").append(refugio.getOcupantes().size()).append("\n");
+    estado.append("\nOcupantes:\n");
+    
+    for (Personaje ocupante : refugio.getOcupantes()) {
+        estado.append("- ").append(ocupante.getNombre()).append("\n");
+    }
+
+    JOptionPane.showMessageDialog(this, 
+        estado.toString(),
+        "Estado del refugio",
+        JOptionPane.INFORMATION_MESSAGE);
+}
 
     private void cazar(String name) {
         Cazador cazador = (Cazador) personajes.get(name);
@@ -1166,7 +1371,7 @@ private void defenderDeDepredador(String name) {
                 );
                 if (personajeReceptor != null && !personajeReceptor.equals(name)) {
                     Personaje receptor = personajes.get(personajeReceptor);
-                    String[] tiposRecursos = {"fruta", "agua", "madera", "planta medicinal"};
+                    String[] tiposRecursos = {"fruta", "agua", "madera", "planta_medicinal"};
                     String tipoRecurso = (String) JOptionPane.showInputDialog(
                         this,
                         "Elige el tipo de recurso a entregar:",
@@ -1197,30 +1402,70 @@ private void defenderDeDepredador(String name) {
     Personaje personaje = personajes.get(name);
     StringBuilder stats = new StringBuilder();
     
-    stats.append("Nombre: ").append(name).append("\n");
-    stats.append("Nivel de Energía: ").append(personaje.getNivelEnergia()).append("\n");
-    stats.append("Nivel de Salud: ").append(personaje.getNivelSalud()).append("\n");
+    // Información básica
+    stats.append("=== Estadísticas de ").append(name).append(" ===\n\n");
+    stats.append("Tipo: ").append(personaje.getClass().getSimpleName()).append("\n");
+    stats.append("Nivel de Energía: ").append(personaje.getNivelEnergia()).append("/100\n");
+    stats.append("Nivel de Salud: ").append(personaje.getNivelSalud()).append("/100\n");
     
-    if (personaje instanceof Recolector) {
-        stats.append("Habilidad de recolección: ")
-             .append(((Recolector) personaje).getHabilidadRecoleccion())
-             .append("\n");
+    // Estado de enfermedad
+    if (personaje.isEnfermo()) {
+        stats.append("\nEstado: Enfermo\n");
+        stats.append("Enfermedad: ").append(personaje.getTipoEnfermedad())
+             .append(personaje.isEnfermedadGrave() ? " (GRAVE)" : " (leve)").append("\n");
+    } else {
+        stats.append("\nEstado: Saludable\n");
     }
     
-    stats.append("\nInventario Personal:\n");
+    // Habilidades específicas según el tipo de personaje
+    if (personaje instanceof Cazador) {
+        stats.append("\nHabilidad de caza: ")
+             .append(((Cazador) personaje).getHabilidadCaza()).append("/100\n");
+    } else if (personaje instanceof Constructor) {
+        stats.append("\nHabilidad de construcción: ")
+             .append(((Constructor) personaje).getHabilidadConstruccion()).append("/100\n");
+    } else if (personaje instanceof Recolector) {
+        stats.append("\nHabilidad de recolección: ")
+             .append(((Recolector) personaje).getHabilidadRecoleccion()).append("/100\n");
+    } else if (personaje instanceof Explorador) {
+        stats.append("\nNivel de exploración: ")
+             .append(((Explorador) personaje).getNivelExploracion()).append("/100\n");
+    } else if (personaje instanceof Curandero) {
+        stats.append("\nHabilidad de curación: ")
+             .append(((Curandero) personaje).getHabilidadCurar()).append("/100\n");
+    } else if (personaje instanceof Científico) {
+        stats.append("\nHabilidad científica: ")
+             .append(((Científico) personaje).getHabilidadCiencia()).append("/100\n");
+    }
+    
+    // Información del refugio
+    Refugio refugio = personaje.getRefugioAsignado();
+    if (refugio != null) {
+        stats.append("\nRefugio asignado:\n");
+        stats.append("- Estabilidad: ").append(refugio.getEstabilidad()).append("%\n");
+        stats.append("- Ocupación: ").append(refugio.getOcupantes().size())
+             .append("/").append(refugio.getCapacidad()).append("\n");
+    } else {
+        stats.append("\nSin refugio asignado\n");
+    }
+    
+    // Inventario
+    stats.append("\nInventario:\n");
     List<Recurso> inventario = personaje.getInventario();
     if (inventario.isEmpty()) {
-        stats.append("- Vacío");
+        stats.append("- Vacío\n");
     } else {
         for (Recurso recurso : inventario) {
             stats.append("- ").append(recurso.getTipo())
-                 .append(": ").append(recurso.getCantidad())
-                 .append("\n");
+                 .append(": ").append(recurso.getCantidad()).append("\n");
         }
     }
 
-    JOptionPane.showMessageDialog(this, stats.toString(), 
-        "Estadísticas de " + name, JOptionPane.INFORMATION_MESSAGE);
+    // Mostrar la información en un diálogo
+    JOptionPane.showMessageDialog(this, 
+        stats.toString(),
+        "Estadísticas de " + name,
+        JOptionPane.INFORMATION_MESSAGE);
 }
 
 

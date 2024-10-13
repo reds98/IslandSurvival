@@ -8,7 +8,7 @@ public class Constructor extends Personaje {
 
     public Constructor(String nombre) {
         super(nombre);
-        this.habilidadConstruccion = 50; // Valor inicial
+        this.habilidadConstruccion = 50;
     }
 
     @Override
@@ -22,61 +22,107 @@ public class Constructor extends Personaje {
 
     @Override
     public void comer(String tipoComida) {
-        int energiaRecuperada = 0;
-        if (tipoComida.equals("carne") || tipoComida.equals("fruta")) {
-            energiaRecuperada = 10 + random.nextInt(11); // 10-20 puntos
+        Recurso comida = null;
+        for (Recurso recurso : inventario) {
+            if (recurso.getTipo().equals(tipoComida) && recurso.getCantidad() > 0) {
+                comida = recurso;
+                break;
+            }
+        }
+
+        if (comida != null) {
+            int energiaRecuperada;
+            if (tipoComida.equals("carne")) {
+                energiaRecuperada = 20;
+            } else if (tipoComida.equals("fruta")) {
+                energiaRecuperada = 15;
+            } else {
+                return;
+            }
+
+            comida.usarRecurso(1);
+            recuperarEnergia(energiaRecuperada);
+            
+            if (comida.getCantidad() <= 0) {
+                inventario.remove(comida);
+            }
+        }
+    }
+
+    public boolean construirRefugio() {
+        // Verificar si tiene suficiente energía
+        if (nivelEnergia < 20) {
+            System.out.println(nombre + " no tiene suficiente energía para construir.");
+            return false;
+        }
+
+        // Verificar materiales en el inventario
+        Recurso madera = null;
+        Recurso piedra = null;
+        for (Recurso recurso : inventario) {
+            if (recurso.getTipo().equals("madera") && recurso.getCantidad() >= 5) {
+                madera = recurso;
+            }
+            if (recurso.getTipo().equals("piedra") && recurso.getCantidad() >= 3) {
+                piedra = recurso;
+            }
+        }
+
+        if (madera != null && piedra != null) {
+            // Construir el refugio
+            madera.usarRecurso(5);
+            piedra.usarRecurso(3);
+            
+            // Remover recursos si se agotaron
+            if (madera.getCantidad() <= 0) inventario.remove(madera);
+            if (piedra.getCantidad() <= 0) inventario.remove(piedra);
+
+            reducirEnergia(20);
+            
+            Refugio nuevoRefugio = new Refugio(4); // Capacidad para 4 personas
+            refugioAsignado = nuevoRefugio;
+            
+            habilidadConstruccion += 3;
+            if (habilidadConstruccion > 100) habilidadConstruccion = 100;
+            
+            return true;
         }
         
-        if (consumirRecurso(tipoComida, 1)) {
-            recuperarEnergia(energiaRecuperada);
-            System.out.println(nombre + " ha comido " + tipoComida + " y recuperado " + energiaRecuperada + " puntos de energía.");
-        } else {
-            System.out.println("No hay " + tipoComida + " disponible para comer.");
-        }
+        return false;
     }
 
-    public void construirRefugio() {
-        int energiaGastada = 20;
-        reducirEnergia(energiaGastada);
-
-        if (consumirRecurso("madera", 5) && consumirRecurso("piedra", 3)) {  // Reducimos los costos
-            Refugio nuevoRefugio = new Refugio(4); // Capacidad para 4 personas
-            setRefugioAsignado(nuevoRefugio);
-            habilidadConstruccion += 3;
-            System.out.println(nombre + " ha construido un nuevo refugio.");
-        } else {
-            System.out.println(nombre + " no tiene suficientes materiales para construir un refugio.");
-        }
-    }
-
-    public void repararRefugio() {
-        if (refugioAsignado == null) {
-            System.out.println(nombre + " no tiene un refugio asignado para reparar.");
-            return;
+    public boolean repararRefugio() {
+        if (refugioAsignado == null || nivelEnergia < 15) {
+            return false;
         }
 
-        int energiaGastada = 15;
-        reducirEnergia(energiaGastada);
+        // Buscar madera en el inventario
+        Recurso madera = null;
+        for (Recurso recurso : inventario) {
+            if (recurso.getTipo().equals("madera") && recurso.getCantidad() >= 2) {
+                madera = recurso;
+                break;
+            }
+        }
 
-        int materialesNecesarios = (100 - refugioAsignado.getEstabilidad()) / 10;
-        if (consumirRecurso("madera", materialesNecesarios)) {
-            int reparacion = 10 * materialesNecesarios;
+        if (madera != null) {
+            madera.usarRecurso(2);
+            if (madera.getCantidad() <= 0) {
+                inventario.remove(madera);
+            }
+
+            reducirEnergia(15);
+            
+            int reparacion = 20 + (habilidadConstruccion / 5); // Entre 20 y 40 puntos
             refugioAsignado.reparar(reparacion);
+            
             habilidadConstruccion += 2;
-            System.out.println(nombre + " ha reparado el refugio, aumentando su estabilidad en " + reparacion + " puntos.");
-        } else {
-            System.out.println(nombre + " no tiene suficientes materiales para reparar el refugio.");
+            if (habilidadConstruccion > 100) habilidadConstruccion = 100;
+            
+            return true;
         }
-    }
-
-    @Override
-    public void descansar() {
-        if (refugioAsignado != null) {
-            recuperarEnergia(20);
-            System.out.println(nombre + " ha descansado en el refugio y recuperado 20 puntos de energía.");
-        } else {
-            super.descansar();
-        }
+        
+        return false;
     }
 
     public int getHabilidadConstruccion() {
