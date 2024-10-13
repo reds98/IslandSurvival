@@ -27,70 +27,96 @@ public class Explorador extends Personaje {
             energiaRecuperada = 15 + random.nextInt(6); // 15-20 puntos
         }
         
+        // Buscar en el inventario personal
         for (Recurso recurso : inventario) {
-            if (recurso.getTipo().equals(tipoComida)) {
-                recuperarEnergia(energiaRecuperada);
+            if (recurso.getTipo().equals(tipoComida) && recurso.getCantidad() > 0) {
                 recurso.usarRecurso(1);
-                if (recurso.getCantidad() == 0) {
+                recuperarEnergia(energiaRecuperada);
+                System.out.println(nombre + " ha comido " + tipoComida + " y recuperado " + energiaRecuperada + " puntos de energía.");
+                
+                // Remover el recurso si se acabó
+                if (recurso.getCantidad() <= 0) {
                     inventario.remove(recurso);
                 }
-                System.out.println(nombre + " ha comido " + tipoComida + " y recuperado " + energiaRecuperada + " puntos de energía.");
-                break;
+                return;
             }
         }
+        System.out.println(nombre + " no tiene " + tipoComida + " en su inventario para comer.");
     }
 
-     public void explorar() {
-        int energiaGastada = 15 + random.nextInt(16); // 15-30 puntos
+  public void explorar() {
+    if (nivelEnergia >= 15) {  // Verificar si tiene suficiente energía
+        int energiaGastada = 15;
         reducirEnergia(energiaGastada);
         nivelExploracion += 2;
 
         System.out.println(nombre + " ha explorado el área. Energía gastada: " + energiaGastada);
         System.out.println("Nivel de exploración aumentado a: " + nivelExploracion);
 
-        // La exploración siempre descubre un área, pero no siempre encuentra recursos o animales
-        if (random.nextDouble() < 0.7) { // 70% de probabilidad de encontrar algo
-            List<Recurso> recursosEncontrados = descubrirRecursos();
-            System.out.println(nombre + " ha encontrado recursos durante la exploración:");
-            for (Recurso recurso : recursosEncontrados) {
-                System.out.println("- " + recurso.getCantidad() + " " + recurso.getTipo());
-            }
+        // La exploración siempre es exitosa si tiene energía
+        List<Recurso> recursosEncontrados = descubrirRecursos();
+        System.out.println(nombre + " ha encontrado recursos durante la exploración:");
+        for (Recurso recurso : recursosEncontrados) {
+            System.out.println("- " + recurso.getCantidad() + " " + recurso.getTipo());
         }
         
-        if (random.nextDouble() < 0.3) { // 30% de probabilidad de encontrar un animal
+        // La posibilidad de encontrar animales se mantiene aleatoria
+        if (random.nextDouble() < 0.3) { // 30% de probabilidad de encontrar animal
             Animal animalEncontrado = descubrirAnimal();
             System.out.println(nombre + " ha encontrado un " + animalEncontrado.getTipoAnimal() + " durante la exploración.");
         }
+    } else {
+        System.out.println(nombre + " no tiene suficiente energía para explorar.");
     }
-     public Animal descubrirAnimal() {
-        String[] tiposAnimales = {"conejo", "ciervo", "lobo", "oso"};
-        String tipoAnimal = tiposAnimales[new Random().nextInt(tiposAnimales.length)];
-        return new Animal(tipoAnimal);
-    }
-
-    public List<Recurso> descubrirRecursos() {
-        List<Recurso> recursosEncontrados = new ArrayList<>();
+}
+ public Animal descubrirAnimal() {
+    // Los animales que puede encontrar son aleatorios pero solo pacíficos
+    String[] tiposAnimales = {"conejo", "ciervo"};
+    String tipoAnimal = tiposAnimales[random.nextInt(tiposAnimales.length)];
+    Animal animalDescubierto = new Animal(tipoAnimal);
+    System.out.println(nombre + " ha descubierto un " + tipoAnimal + " en el área.");
+    return animalDescubierto;
+}
+    // En la clase Explorador, modificamos el método descubrirRecursos:
+public List<Recurso> descubrirRecursos() {
+    List<Recurso> recursosEncontrados = new ArrayList<>();
+    if (nivelEnergia >= 5) {  // Verificar si tiene suficiente energía
+        // Generar 1-3 recursos aleatorios
         int cantidadRecursos = 1 + random.nextInt(3); // 1-3 recursos
+        String[] tiposRecursos = {"fruta", "madera", "planta medicinal", "piedra", "agua"};
 
         for (int i = 0; i < cantidadRecursos; i++) {
-            String[] tiposRecursos = {"fruta", "madera", "planta medicinal", "piedra", "agua"};
             String tipoRecurso = tiposRecursos[random.nextInt(tiposRecursos.length)];
             int cantidad = 1 + random.nextInt(3); // 1-3 unidades
-
             Recurso recursoEncontrado = new Recurso(tipoRecurso, cantidad);
             recursosEncontrados.add(recursoEncontrado);
-
-            // Costo adicional de energía por recolectar
             reducirEnergia(5);
         }
-
-        return recursosEncontrados;
     }
+    return recursosEncontrados;
+}
 
     public void recolectar(Recurso recurso) {
-        inventario.add(recurso);
-        reducirEnergia(5);
-        System.out.println(nombre + " ha recolectado " + recurso.getCantidad() + " " + recurso.getTipo() + "(s).");
+        if (nivelEnergia >= 5) {  // Verificar si tiene suficiente energía
+            // Buscar si ya existe el recurso en el inventario
+            boolean encontrado = false;
+            for (Recurso r : inventario) {
+                if (r.getTipo().equals(recurso.getTipo())) {
+                    r.agregarRecurso(recurso.getCantidad()); // Sumamos al existente
+                    encontrado = true;
+                    break;
+                }
+            }
+
+            if (!encontrado) {
+                inventario.add(new Recurso(recurso.getTipo(), recurso.getCantidad())); // Crear nuevo si no existe
+            }
+
+            reducirEnergia(5);
+            System.out.println(nombre + " ha recolectado " + recurso.getCantidad() + " " + recurso.getTipo() + "(s).");
+        } else {
+            System.out.println(nombre + " no tiene suficiente energía para recolectar.");
+        }
     }
 
     @Override

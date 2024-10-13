@@ -34,25 +34,23 @@ public class Cazador extends Personaje {
     }
 
     public boolean cazar() {
-        int energiaGastada = 25 + random.nextInt(11); // 25-35 puntos
-        reducirEnergia(energiaGastada);
-        
-        double probabilidadExito = (habilidadCaza / 100.0) * 0.7; // Máximo 70% de probabilidad de éxito
-        boolean exito = random.nextDouble() < probabilidadExito;
-        
-        if (exito) {
-            int cantidadCarne = 1 + random.nextInt(3); // 1-3 unidades de carne
+        if (nivelEnergia >= 25) {  // Verificar si tiene suficiente energía
+            int energiaGastada = 25;
+            reducirEnergia(energiaGastada);
+
+            // Siempre tiene éxito si tiene energía
+            int cantidadCarne = 2; // Cantidad fija de carne
             agregarRecursoGlobal("carne", cantidadCarne);
             habilidadCaza += 2;
             System.out.println(nombre + " ha cazado con éxito y obtenido " + cantidadCarne + " unidades de carne.");
+            return true;
         } else {
-            System.out.println(nombre + " no ha tenido éxito en la caza.");
+            System.out.println(nombre + " no tiene suficiente energía para cazar.");
+            return false;
         }
-        
-        return exito;
     }
 
-    public void defender(Personaje personaje, Animal animal) {
+    public boolean defender(Personaje personaje, Animal animal) {
         int energiaGastada = 25;
         reducirEnergia(energiaGastada);
         
@@ -68,6 +66,8 @@ public class Cazador extends Personaje {
             personaje.reducirSalud(danoRecibido / 2); // El personaje defendido recibe la mitad del daño
             System.out.println(nombre + " no pudo defender a " + personaje.getNombre() + " y ambos resultaron heridos.");
         }
+        
+        return exito;
     }
 
     public int getHabilidadCaza() {

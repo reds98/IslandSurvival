@@ -16,48 +16,63 @@ public class Recolector extends Personaje {
         recolectar();
     }
 
-    @Override
+     @Override
     public void comer(String tipoComida) {
         if (tipoComida.equals("fruta")) {
             int energiaRecuperada = 10 + random.nextInt(6); // 10-15 puntos
-            if (consumirRecurso(tipoComida, 1)) {
-                recuperarEnergia(energiaRecuperada);
-                System.out.println(nombre + " ha comido una fruta y recuperado " + energiaRecuperada + " puntos de energía.");
-            } else {
-                System.out.println("No hay frutas disponibles para comer.");
+            
+            // Buscar en el inventario personal
+            for (Recurso recurso : inventario) {
+                if (recurso.getTipo().equals(tipoComida) && recurso.getCantidad() > 0) {
+                    recurso.usarRecurso(1);
+                    recuperarEnergia(energiaRecuperada);
+                    System.out.println(nombre + " ha comido una fruta y recuperado " + energiaRecuperada + " puntos de energía.");
+                    
+                    // Remover el recurso si se acabó
+                    if (recurso.getCantidad() <= 0) {
+                        inventario.remove(recurso);
+                    }
+                    return;
+                }
             }
+            System.out.println(nombre + " no tiene frutas en su inventario para comer.");
         } else {
             super.comer(tipoComida);
         }
     }
 
-    public void recolectar() {
-        int energiaGastada = 10 + random.nextInt(11); // 10-20 puntos
+   public void recolectar() {
+    if (nivelEnergia >= 10) {  // Verificar si tiene suficiente energía
+        int energiaGastada = 10;
         reducirEnergia(energiaGastada);
-
-        double probabilidadExito = (habilidadRecoleccion / 100.0) * 0.8; // Máximo 80% de probabilidad de éxito
-        boolean exito = random.nextDouble() < probabilidadExito;
-
-        if (exito) {
-            String[] tiposRecursos = {"fruta", "agua", "madera", "planta medicinal"};
-            String tipoRecurso = tiposRecursos[random.nextInt(tiposRecursos.length)];
-            int cantidad = 1 + random.nextInt(3); // 1-3 unidades
-
-            agregarRecursoGlobal(tipoRecurso, cantidad);
-            habilidadRecoleccion += 2;
-            System.out.println(nombre + " ha recolectado " + cantidad + " " + tipoRecurso + "(s).");
-        } else {
-            System.out.println(nombre + " no ha tenido éxito en la recolección.");
-        }
+        
+        // Siempre tiene éxito si tiene energía
+        agregarRecursoGlobal("fruta", 2);
+        agregarRecursoGlobal("madera", 1);
+        System.out.println(nombre + " ha recolectado recursos con éxito.");
+    } else {
+        System.out.println(nombre + " no tiene suficiente energía para recolectar.");
     }
+}
 
-    public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
-        if (consumirRecurso(tipoRecurso, cantidad)) {
-            receptor.recibirRecurso(new Recurso(tipoRecurso, cantidad));
-            System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + "(s) a " + receptor.getNombre() + ".");
-        } else {
-            System.out.println("No hay suficientes " + tipoRecurso + " para entregar.");
+   public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
+        // Buscar el recurso en el inventario personal
+        for (Recurso recurso : inventario) {
+            if (recurso.getTipo().equals(tipoRecurso) && recurso.getCantidad() >= cantidad) {
+                recurso.usarRecurso(cantidad);
+                Recurso recursoEntregado = new Recurso(tipoRecurso, cantidad);
+                receptor.recibirRecurso(recursoEntregado);
+                
+                // Remover el recurso si se acabó
+                if (recurso.getCantidad() <= 0) {
+                    inventario.remove(recurso);
+                }
+                
+                System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + "(s) a " + receptor.getNombre() + ".");
+                return;
+            }
         }
+        System.out.println(nombre + " no tiene suficientes " + tipoRecurso + " para entregar.");
     }
 
     @Override
