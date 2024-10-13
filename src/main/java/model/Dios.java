@@ -103,23 +103,22 @@ public class Dios {
         }
     }
 
-    public void generarEnfermedad(Personaje personaje) {
-        if (personaje == null || personaje.getNivelSalud() <= 0) return;
-        
-        boolean grave = random.nextBoolean();
-        String tipoEnfermedad = TIPOS_ENFERMEDADES[random.nextInt(TIPOS_ENFERMEDADES.length)];
-        
-        personaje.contraerEnfermedad(tipoEnfermedad, grave);
-        
-        // Daño inicial por la enfermedad
-        if (grave) {
-            personaje.reducirSalud(20);
-            personaje.reducirEnergia(15);
-        } else {
-            personaje.reducirSalud(10);
-            personaje.reducirEnergia(10);
-        }
+    public void generarEnfermedad(Personaje personaje, boolean grave) {
+    if (personaje == null || personaje.getNivelSalud() <= 0) return;
+    
+    String tipoEnfermedad = TIPOS_ENFERMEDADES[random.nextInt(TIPOS_ENFERMEDADES.length)];
+    
+    personaje.contraerEnfermedad(tipoEnfermedad, grave);
+    
+    // Daño inicial por la enfermedad
+    if (grave) {
+        personaje.reducirSalud(20);
+        personaje.reducirEnergia(15);
+    } else {
+        personaje.reducirSalud(10);
+        personaje.reducirEnergia(10);
     }
+}
 
    public void generarTormenta() {
     if (hayTormenta) return;

@@ -85,9 +85,25 @@ public abstract class Personaje {
     }
 
     public void recibirRecurso(Recurso recurso) {
-        inventario.add(recurso);
-        System.out.println(nombre + " ha recibido " + recurso.getCantidad() + " " + recurso.getTipo() + "(s).");
+    // Buscar si ya existe un recurso del mismo tipo
+    boolean encontrado = false;
+    for (Recurso r : inventario) {
+        if (r.getTipo().equals(recurso.getTipo())) {
+            // Si existe, sumar la cantidad
+            r.agregarRecurso(recurso.getCantidad());
+            encontrado = true;
+            break;
+        }
     }
+    
+    // Si no se encontró el tipo de recurso, añadirlo como nuevo
+    if (!encontrado) {
+        inventario.add(recurso);
+    }
+    
+    System.out.println(nombre + " ha recibido " + recurso.getCantidad() + " " + 
+                      recurso.getTipo() + "(s).");
+}
 
     public void compartirRecurso(Personaje receptor, Recurso recurso) {
         if (inventario.remove(recurso)) {

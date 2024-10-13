@@ -75,26 +75,30 @@ public class Recolector extends Personaje {
         System.out.println(nombre + " ha agregado " + cantidad + " " + tipo + " a su inventario.");
     }
 
-    public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
-        // Buscar el recurso en el inventario personal
-        for (Recurso recurso : inventario) {
-            if (recurso.getTipo().equals(tipoRecurso) && recurso.getCantidad() >= cantidad) {
-                recurso.usarRecurso(cantidad);
-                Recurso recursoEntregado = new Recurso(tipoRecurso, cantidad);
-                receptor.recibirRecurso(recursoEntregado);
-                
-                // Remover el recurso si se acabó
-                if (recurso.getCantidad() <= 0) {
-                    inventario.remove(recurso);
-                }
-                
-                System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + 
-                                 "(s) a " + receptor.getNombre() + ".");
-                return;
-            }
+   public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
+    Recurso recursoAEntregar = null;
+    for (Recurso recurso : inventario) {
+        if (recurso.getTipo().equals(tipoRecurso)) {
+            recursoAEntregar = recurso;
+            break;
         }
+    }
+
+    if (recursoAEntregar != null && recursoAEntregar.getCantidad() >= cantidad) {
+        Recurso recursoNuevo = new Recurso(tipoRecurso, cantidad);
+        receptor.recibirRecurso(recursoNuevo);
+        
+        recursoAEntregar.usarRecurso(cantidad);
+        if (recursoAEntregar.getCantidad() <= 0) {
+            inventario.remove(recursoAEntregar);
+        }
+        
+        System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + 
+                         "(s) a " + receptor.getNombre() + ".");
+    } else {
         System.out.println(nombre + " no tiene suficientes " + tipoRecurso + " para entregar.");
     }
+}
 
     @Override
     public void descansar() {

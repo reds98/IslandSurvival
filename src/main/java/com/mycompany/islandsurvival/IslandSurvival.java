@@ -68,7 +68,7 @@ public class IslandSurvival extends JFrame {
   private void cargarImagenes() {
     imagenes = new HashMap<>();
     String[] tipos = {
-        "cazador", "explorador", "recolector", "constructor", "curandero", "cientifico",
+        "cazador", "explorador", "recolector", "constructor", "curandero", "científico",
         "madera", "piedra", "fruta", "planta medicinal", "agua", "carne",
         "conejo", "ciervo", "lobo", "oso", "cabin"
     };
@@ -301,6 +301,10 @@ private void showCharacterControls(String name) {
         numButtons = 14; // Básicos + Recolectar + Entregar
     } else if (personaje instanceof Explorador) {
         numButtons = 14; // Básicos + Explorar + Recolectar
+    } else if (personaje instanceof Curandero) {
+        numButtons = 15; // Básicos + Curar + Preparar Remedio + Recolectar Plantas + Ver Inventario Medicinal
+    } else if (personaje instanceof Científico) {
+        numButtons = 16; // Básicos + Crear Medicamento + Curar Grave + Investigar + Ver Inventario Científico
     }
 
     controlDialog.setLayout(new GridLayout(numButtons, 1, 5, 5));
@@ -368,6 +372,40 @@ private void showCharacterControls(String name) {
         entregarButton.addActionListener(e -> mostrarDialogoEntrega(name));
         controlDialog.add(entregarButton);
     }
+    else if (personaje instanceof Curandero) {
+        JButton curarButton = new JButton("Curar Personaje");
+        curarButton.addActionListener(e -> curarPersonaje(name));
+        controlDialog.add(curarButton);
+
+        JButton prepararRemedioButton = new JButton("Preparar Remedio");
+        prepararRemedioButton.addActionListener(e -> prepararRemedio(name));
+        controlDialog.add(prepararRemedioButton);
+
+        JButton recolectarPlantasButton = new JButton("Recolectar Plantas Medicinales");
+        recolectarPlantasButton.addActionListener(e -> recolectarPlantasMedicinales(name));
+        controlDialog.add(recolectarPlantasButton);
+
+        JButton verInventarioMedicinasButton = new JButton("Ver Inventario Medicinal");
+        verInventarioMedicinasButton.addActionListener(e -> mostrarInventarioMedicinal(name));
+        controlDialog.add(verInventarioMedicinasButton);
+    }
+    else if (personaje instanceof Científico) {
+        JButton crearMedicamentoButton = new JButton("Crear Medicamento Avanzado");
+        crearMedicamentoButton.addActionListener(e -> crearMedicamentoAvanzado(name));
+        controlDialog.add(crearMedicamentoButton);
+
+        JButton curarEnfermedadGraveButton = new JButton("Curar Enfermedad Grave");
+        curarEnfermedadGraveButton.addActionListener(e -> curarEnfermedadGrave(name));
+        controlDialog.add(curarEnfermedadGraveButton);
+
+        JButton investigarButton = new JButton("Investigar");
+        investigarButton.addActionListener(e -> investigar(name));
+        controlDialog.add(investigarButton);
+
+        JButton verInventarioCientificoButton = new JButton("Ver Inventario Científico");
+        verInventarioCientificoButton.addActionListener(e -> mostrarInventarioCientifico(name));
+        controlDialog.add(verInventarioCientificoButton);
+    }
 
     // Botones comunes para todos los personajes
     JButton eatButton = new JButton("Comer");
@@ -382,7 +420,6 @@ private void showCharacterControls(String name) {
     salirRefugioButton.addActionListener(e -> salirRefugio(name));
     controlDialog.add(salirRefugioButton);
 
-    // Botón de descansar (nuevo)
     JButton descanarButton = new JButton("Descansar");
     descanarButton.addActionListener(e -> descansar(name));
     controlDialog.add(descanarButton);
@@ -400,6 +437,173 @@ private void showCharacterControls(String name) {
     controlDialog.setLocationRelativeTo(this);
     controlDialog.setVisible(true);
 }
+private void recolectarPlantasMedicinales(String name) {
+    Curandero curandero = (Curandero) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    // Obtener recursos en la posición actual
+    List<Recurso> recursosEnPunto = recursosEnMapa.get(position);
+    if (recursosEnPunto != null && !recursosEnPunto.isEmpty()) {
+        // Buscar plantas medicinales en los recursos del punto
+        Recurso plantaMedicinal = null;
+        int indiceRecurso = -1;
+        
+        for (int i = 0; i < recursosEnPunto.size(); i++) {
+            Recurso recurso = recursosEnPunto.get(i);
+            if (recurso.getTipo().equals("planta medicinal")) {
+                plantaMedicinal = recurso;
+                indiceRecurso = i;
+                break;
+            }
+        }
+        
+        if (plantaMedicinal != null) {
+            if (curandero.recolectarPlantasMedicinales(plantaMedicinal.getCantidad())) {
+                // Si la recolección fue exitosa, remover el recurso del mapa
+                recursosEnPunto.remove(indiceRecurso);
+                if (recursosEnPunto.isEmpty()) {
+                    recursosEnMapa.remove(position);
+                }
+                registrarEnBitacora(name, "Ha recolectado plantas medicinales del área");
+                updateMapCell(position.x, position.y);
+            } else {
+                registrarEnBitacora(name, "No pudo recolectar plantas medicinales por falta de energía");
+            }
+        } else {
+            registrarEnBitacora(name, "No hay plantas medicinales en esta posición");
+        }
+    } else {
+        registrarEnBitacora(name, "No hay recursos para recolectar en esta posición");
+    }
+    actualizarEstadoJuego();
+}
+
+
+//CIENTIFICO
+
+private void crearMedicamentoAvanzado(String name) {
+    Científico cientifico = (Científico) personajes.get(name);
+    
+    if (cientifico.crearMedicamentoAvanzado()) {
+        registrarEnBitacora(name, "Ha creado exitosamente un medicamento avanzado");
+        JOptionPane.showMessageDialog(this, 
+            "¡Medicamento avanzado creado con éxito!",
+            "Creación exitosa",
+            JOptionPane.INFORMATION_MESSAGE);
+    } else {
+        registrarEnBitacora(name, "No pudo crear el medicamento avanzado por falta de recursos o energía");
+        JOptionPane.showMessageDialog(this, 
+            "No se pudo crear el medicamento. Verifica tener suficientes plantas medicinales (3) y energía.",
+            "Error en creación",
+            JOptionPane.WARNING_MESSAGE);
+    }
+    actualizarEstadoJuego();
+}
+
+private void curarEnfermedadGrave(String name) {
+    Científico cientifico = (Científico) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    Set<String> personajesEnPosicion = posicionesPersonajes.get(position);
+    if (personajesEnPosicion == null || personajesEnPosicion.size() <= 1) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay otros personajes cerca para curar.",
+            "Curación",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+    // Crear lista de personajes con enfermedades graves
+    List<String> personajesEnfermos = new ArrayList<>();
+    for (String nombrePersonaje : personajesEnPosicion) {
+        if (!nombrePersonaje.equals(name)) {
+            Personaje personaje = personajes.get(nombrePersonaje);
+            if (personaje.isEnfermo() && personaje.isEnfermedadGrave()) {
+                personajesEnfermos.add(nombrePersonaje + 
+                    " - Enfermedad: " + personaje.getTipoEnfermedad());
+            }
+        }
+    }
+
+    if (personajesEnfermos.isEmpty()) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay personajes con enfermedades graves en esta posición.",
+            "Curación",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+    String seleccion = (String) JOptionPane.showInputDialog(
+        this,
+        "¿A quién quieres curar?",
+        "Seleccionar Paciente",
+        JOptionPane.QUESTION_MESSAGE,
+        null,
+        personajesEnfermos.toArray(),
+        personajesEnfermos.get(0)
+    );
+
+    if (seleccion != null) {
+        String nombrePaciente = seleccion.split(" -")[0];
+        Personaje paciente = personajes.get(nombrePaciente);
+        
+        if (cientifico.curarEnfermedadGrave(paciente)) {
+            registrarEnBitacora(name, "Ha curado la enfermedad grave de " + nombrePaciente);
+            registrarEnBitacora(nombrePaciente, "Ha sido curado de su enfermedad grave por " + name);
+            JOptionPane.showMessageDialog(this, 
+                "¡Tratamiento exitoso! El paciente ha sido curado.",
+                "Curación exitosa",
+                JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            registrarEnBitacora(name, "No pudo curar a " + nombrePaciente + 
+                " por falta de medicamentos avanzados o energía");
+            JOptionPane.showMessageDialog(this, 
+                "No se pudo realizar el tratamiento. Verifica tener medicamentos avanzados y energía suficiente.",
+                "Error en tratamiento",
+                JOptionPane.WARNING_MESSAGE);
+        }
+        actualizarEstadoJuego();
+    }
+}
+
+private void investigar(String name) {
+    Científico cientifico = (Científico) personajes.get(name);
+    cientifico.investigar();
+    registrarEnBitacora(name, "Ha realizado investigación científica");
+    actualizarEstadoJuego();
+}
+
+private void mostrarInventarioCientifico(String name) {
+    Científico cientifico = (Científico) personajes.get(name);
+    StringBuilder inventario = new StringBuilder();
+    inventario.append("Inventario Científico de ").append(name).append(":\n\n");
+    
+    int plantasMedicinales = 0;
+    int medicamentosAvanzados = 0;
+    
+    for (Recurso recurso : cientifico.getInventario()) {
+        if (recurso.getTipo().equals("planta medicinal")) {
+            plantasMedicinales = recurso.getCantidad();
+        } else if (recurso.getTipo().equals("medicamento avanzado")) {
+            medicamentosAvanzados = recurso.getCantidad();
+        }
+    }
+    
+    inventario.append("Plantas Medicinales: ").append(plantasMedicinales).append("\n");
+    inventario.append("Medicamentos Avanzados: ").append(medicamentosAvanzados).append("\n");
+    inventario.append("\nHabilidad Científica: ").append(cientifico.getHabilidadCiencia()).append("/100");
+    
+    JOptionPane.showMessageDialog(this,
+        inventario.toString(),
+        "Inventario Científico",
+         JOptionPane.INFORMATION_MESSAGE);
+}
+
+
 
 // Añadir el nuevo método para defender de depredadores
 private void defenderDeDepredador(String name) {
@@ -497,69 +701,79 @@ private void defenderDeDepredador(String name) {
         inventarioDialog.setVisible(true);
     }
 
-    private void mostrarDialogoEntrega(String name) {
-        Recolector recolector = (Recolector) personajes.get(name);
-        Point position = getCharacterPosition(name);
-        if (position == null) {
-            JOptionPane.showMessageDialog(this, "Error al obtener la posición del personaje");
-            return;
-        }
-
-        Set<String> personajesEnPosicion = posicionesPersonajes.get(position);
-        if (personajesEnPosicion == null || personajesEnPosicion.size() <= 1) {
-            JOptionPane.showMessageDialog(this, "No hay otros personajes cerca para entregar recursos.");
-            return;
-        }
-
-        // Crear diálogo de entrega
-        JDialog entregaDialog = new JDialog(this, "Entregar Recurso", true);
-        entregaDialog.setLayout(new GridLayout(0, 1, 5, 5));
-
-        // Selector de personaje receptor
-        JComboBox<String> receptorCombo = new JComboBox<>();
-        for (String nombrePersonaje : personajesEnPosicion) {
-            if (!nombrePersonaje.equals(name)) {
-                receptorCombo.addItem(nombrePersonaje);
-            }
-        }
-
-        // Selector de recurso
-        JComboBox<String> recursoCombo = new JComboBox<>();
-        for (Recurso recurso : recolector.getInventario()) {
-            recursoCombo.addItem(recurso.getTipo() + " (" + recurso.getCantidad() + ")");
-        }
-
-        // Spinner para la cantidad
-        SpinnerNumberModel spinnerModel = new SpinnerNumberModel(1, 1, 99, 1);
-        JSpinner cantidadSpinner = new JSpinner(spinnerModel);
-
-        entregaDialog.add(new JLabel("Seleccionar receptor:"));
-        entregaDialog.add(receptorCombo);
-        entregaDialog.add(new JLabel("Seleccionar recurso:"));
-        entregaDialog.add(recursoCombo);
-        entregaDialog.add(new JLabel("Cantidad:"));
-        entregaDialog.add(cantidadSpinner);
-
-        JButton entregarButton = new JButton("Entregar");
-        entregarButton.addActionListener(e -> {
-            String receptor = (String) receptorCombo.getSelectedItem();
-            String recursoSeleccionado = (String) recursoCombo.getSelectedItem();
-            if (recursoSeleccionado != null) {
-                String tipoRecurso = recursoSeleccionado.split(" ")[0];
-                int cantidad = (int) cantidadSpinner.getValue();
-
-                recolector.entregarRecurso(personajes.get(receptor), tipoRecurso, cantidad);
-                entregaDialog.dispose();
-                actualizarEstadoJuego();
-            }
-        });
-
-        entregaDialog.add(entregarButton);
-
-        entregaDialog.pack();
-        entregaDialog.setLocationRelativeTo(this);
-        entregaDialog.setVisible(true);
+  private void mostrarDialogoEntrega(String name) {
+    Recolector recolector = (Recolector) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    if (position == null) {
+        JOptionPane.showMessageDialog(this, "Error al obtener la posición del personaje");
+        return;
     }
+
+    Set<String> personajesEnPosicion = posicionesPersonajes.get(position);
+    if (personajesEnPosicion == null || personajesEnPosicion.size() <= 1) {
+        JOptionPane.showMessageDialog(this, "No hay otros personajes cerca para entregar recursos.");
+        return;
+    }
+
+    // Crear diálogo de entrega
+    JDialog entregaDialog = new JDialog(this, "Entregar Recurso", true);
+    entregaDialog.setLayout(new GridLayout(0, 1, 5, 5));
+
+    // Selector de personaje receptor
+    JComboBox<String> receptorCombo = new JComboBox<>();
+    for (String nombrePersonaje : personajesEnPosicion) {
+        if (!nombrePersonaje.equals(name)) {
+            receptorCombo.addItem(nombrePersonaje);
+        }
+    }
+
+    // Selector de recurso
+    JComboBox<String> recursoCombo = new JComboBox<>();
+    for (Recurso recurso : recolector.getInventario()) {
+        recursoCombo.addItem(recurso.getTipo() + " (" + recurso.getCantidad() + ")");
+    }
+
+    // Spinner para la cantidad
+    SpinnerNumberModel spinnerModel = new SpinnerNumberModel(1, 1, 99, 1);
+    JSpinner cantidadSpinner = new JSpinner(spinnerModel);
+
+    entregaDialog.add(new JLabel("Seleccionar receptor:"));
+    entregaDialog.add(receptorCombo);
+    entregaDialog.add(new JLabel("Seleccionar recurso:"));
+    entregaDialog.add(recursoCombo);
+    entregaDialog.add(new JLabel("Cantidad:"));
+    entregaDialog.add(cantidadSpinner);
+
+    JButton entregarButton = new JButton("Entregar");
+    entregarButton.addActionListener(e -> {
+        String receptor = (String) receptorCombo.getSelectedItem();
+        String recursoSeleccionado = (String) recursoCombo.getSelectedItem();
+        if (recursoSeleccionado != null) {
+            String tipoRecurso = recursoSeleccionado.split(" \\(")[0]; // Obtener solo el tipo de recurso
+            int cantidad = (int) cantidadSpinner.getValue();
+            
+            // Agregar mensaje de debug
+            System.out.println("Debug - Intentando entregar:");
+            System.out.println("Tipo de recurso: " + tipoRecurso);
+            System.out.println("Cantidad: " + cantidad);
+            System.out.println("Receptor: " + receptor);
+            
+            recolector.entregarRecurso(personajes.get(receptor), tipoRecurso, cantidad);
+            entregaDialog.dispose();
+            actualizarEstadoJuego();
+        }
+    });
+
+    entregaDialog.add(entregarButton);
+
+    JButton cancelarButton = new JButton("Cancelar");
+    cancelarButton.addActionListener(e -> entregaDialog.dispose());
+    entregaDialog.add(cancelarButton);
+
+    entregaDialog.pack();
+    entregaDialog.setLocationRelativeTo(this);
+    entregaDialog.setVisible(true);
+}
 
   private void updateMapCell(int x, int y) {
     if (!descubierto[y][x]) return;
@@ -731,6 +945,111 @@ private void defenderDeDepredador(String name) {
         }
     }
 }
+ private void curarPersonaje(String name) {
+    Curandero curandero = (Curandero) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position == null) return;
+    
+    Set<String> personajesEnPosicion = posicionesPersonajes.get(position);
+    if (personajesEnPosicion == null || personajesEnPosicion.size() <= 1) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay otros personajes cerca para curar.",
+            "Curación",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+    // Crear lista de personajes enfermos en la posición
+    List<String> personajesEnfermos = new ArrayList<>();
+    for (String nombrePersonaje : personajesEnPosicion) {
+        if (!nombrePersonaje.equals(name)) {
+            Personaje personaje = personajes.get(nombrePersonaje);
+            if (personaje.isEnfermo()) {
+                personajesEnfermos.add(nombrePersonaje + 
+                    (personaje.isEnfermedadGrave() ? " (Enfermedad Grave)" : " (Enfermedad Leve)") +
+                    " - " + personaje.getTipoEnfermedad());
+            }
+        }
+    }
+
+    if (personajesEnfermos.isEmpty()) {
+        JOptionPane.showMessageDialog(this, 
+            "No hay personajes enfermos en esta posición.",
+            "Curación",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+
+    String seleccion = (String) JOptionPane.showInputDialog(
+        this,
+        "¿A quién quieres curar?",
+        "Seleccionar Paciente",
+        JOptionPane.QUESTION_MESSAGE,
+        null,
+        personajesEnfermos.toArray(),
+        personajesEnfermos.get(0)
+    );
+
+    if (seleccion != null) {
+        String nombrePaciente = seleccion.split(" \\(")[0];
+        Personaje paciente = personajes.get(nombrePaciente);
+        
+        boolean exito = curandero.curar(paciente);
+        if (exito) {
+            registrarEnBitacora(name, "Ha curado exitosamente a " + nombrePaciente);
+            registrarEnBitacora(nombrePaciente, "Ha sido curado por " + name);
+        } else {
+            if (paciente.isEnfermedadGrave()) {
+                registrarEnBitacora(name, "No pudo curar a " + nombrePaciente + 
+                    " porque su enfermedad es grave y requiere atención del Científico");
+            } else {
+                registrarEnBitacora(name, "No pudo curar a " + nombrePaciente + 
+                    " por falta de recursos o energía");
+            }
+        }
+        actualizarEstadoJuego();
+    }
+}
+
+private void prepararRemedio(String name) {
+    Curandero curandero = (Curandero) personajes.get(name);
+    
+    if (curandero.prepararRemedio()) {
+        registrarEnBitacora(name, "Ha preparado un remedio exitosamente");
+    } else {
+        registrarEnBitacora(name, "No pudo preparar el remedio por falta de recursos o energía");
+    }
+    actualizarEstadoJuego();
+}
+
+
+
+private void mostrarInventarioMedicinal(String name) {
+    Curandero curandero = (Curandero) personajes.get(name);
+    StringBuilder inventario = new StringBuilder();
+    inventario.append("Inventario Medicinal de ").append(name).append(":\n\n");
+    
+    int plantasMedicinales = 0;
+    int remedios = 0;
+    
+    for (Recurso recurso : curandero.getInventario()) {
+        if (recurso.getTipo().equals("planta medicinal")) {
+            plantasMedicinales = recurso.getCantidad();
+        } else if (recurso.getTipo().equals("remedio")) {
+            remedios = recurso.getCantidad();
+        }
+    }
+    
+    inventario.append("Plantas Medicinales: ").append(plantasMedicinales).append("\n");
+    inventario.append("Remedios: ").append(remedios).append("\n");
+    inventario.append("\nHabilidad de Curación: ").append(curandero.getHabilidadCurar()).append("/100");
+    
+    JOptionPane.showMessageDialog(this,
+        inventario.toString(),
+        "Inventario Medicinal",
+        JOptionPane.INFORMATION_MESSAGE);
+}
 
     private void eat(String name) {
         Personaje personaje = personajes.get(name);
@@ -822,30 +1141,46 @@ private void defenderDeDepredador(String name) {
         }
     }
 
-    private void generarEnfermedad() {
-        if (personajes.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No hay personajes en el juego.");
-            return;
-        }
-        
-        String[] nombres = personajes.keySet().toArray(new String[0]);
-        String personajeSeleccionado = (String) JOptionPane.showInputDialog(
+   private void generarEnfermedad() {
+    if (personajes.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "No hay personajes en el juego.");
+        return;
+    }
+    
+    String[] nombres = personajes.keySet().toArray(new String[0]);
+    String personajeSeleccionado = (String) JOptionPane.showInputDialog(
+        this,
+        "Selecciona un personaje para la enfermedad:",
+        "Generar Enfermedad",
+        JOptionPane.QUESTION_MESSAGE,
+        null,
+        nombres,
+        nombres[0]
+    );
+    
+    if (personajeSeleccionado != null) {
+        String[] opciones = {"Enfermedad Grave", "Enfermedad Leve"};
+        int tipoEnfermedad = JOptionPane.showOptionDialog(
             this,
-            "Selecciona un personaje para la enfermedad:",
-            "Generar Enfermedad",
+            "¿Qué tipo de enfermedad deseas generar?",
+            "Tipo de Enfermedad",
+            JOptionPane.DEFAULT_OPTION,
             JOptionPane.QUESTION_MESSAGE,
             null,
-            nombres,
-            nombres[0]
+            opciones,
+            opciones[0]
         );
         
-        if (personajeSeleccionado != null) {
+        if (tipoEnfermedad != JOptionPane.CLOSED_OPTION) {
+            boolean esGrave = tipoEnfermedad == 0;  // 0 es grave, 1 es leve
             Personaje personaje = personajes.get(personajeSeleccionado);
-            dios.generarEnfermedad(personaje);
-            registrarEnBitacora(personajeSeleccionado, "Ha contraído una enfermedad");
+            dios.generarEnfermedad(personaje, esGrave);
+            registrarEnBitacora(personajeSeleccionado, 
+                "Ha contraído una enfermedad " + (esGrave ? "grave" : "leve"));
             actualizarEstadoJuego();
         }
     }
+}
     
     private Point seleccionarPosicionAtaque() {
     // Crear lista de posiciones válidas (con personajes)
