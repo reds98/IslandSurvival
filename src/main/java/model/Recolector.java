@@ -16,7 +16,7 @@ public class Recolector extends Personaje {
         recolectar();
     }
 
-     @Override
+    @Override
     public void comer(String tipoComida) {
         if (tipoComida.equals("fruta")) {
             int energiaRecuperada = 10 + random.nextInt(6); // 10-15 puntos
@@ -26,7 +26,8 @@ public class Recolector extends Personaje {
                 if (recurso.getTipo().equals(tipoComida) && recurso.getCantidad() > 0) {
                     recurso.usarRecurso(1);
                     recuperarEnergia(energiaRecuperada);
-                    System.out.println(nombre + " ha comido una fruta y recuperado " + energiaRecuperada + " puntos de energía.");
+                    System.out.println(nombre + " ha comido una fruta y recuperado " + 
+                                     energiaRecuperada + " puntos de energía.");
                     
                     // Remover el recurso si se acabó
                     if (recurso.getCantidad() <= 0) {
@@ -41,21 +42,40 @@ public class Recolector extends Personaje {
         }
     }
 
-   public void recolectar() {
-    if (nivelEnergia >= 10) {  // Verificar si tiene suficiente energía
-        int energiaGastada = 10;
-        reducirEnergia(energiaGastada);
-        
-        // Siempre tiene éxito si tiene energía
-        agregarRecursoGlobal("fruta", 2);
-        agregarRecursoGlobal("madera", 1);
-        System.out.println(nombre + " ha recolectado recursos con éxito.");
-    } else {
-        System.out.println(nombre + " no tiene suficiente energía para recolectar.");
-    }
-}
+    public void recolectar() {
+        if (nivelEnergia >= 10) {
+            reducirEnergia(10);
+            habilidadRecoleccion += 2;
+            if (habilidadRecoleccion > 100) habilidadRecoleccion = 100;
 
-   public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
+            System.out.println(nombre + " está listo para recolectar recursos.");
+        } else {
+            System.out.println(nombre + " no tiene suficiente energía para recolectar.");
+        }
+    }
+
+    public void agregarRecursoAInventario(String tipo, int cantidad) {
+        if (cantidad <= 0) return;
+        
+        // Buscar si ya existe el recurso
+        boolean encontrado = false;
+        for (Recurso recurso : inventario) {
+            if (recurso.getTipo().equals(tipo)) {
+                recurso.agregarRecurso(cantidad);
+                encontrado = true;
+                break;
+            }
+        }
+
+        // Si no se encontró, crear nuevo recurso
+        if (!encontrado) {
+            inventario.add(new Recurso(tipo, cantidad));
+        }
+        
+        System.out.println(nombre + " ha agregado " + cantidad + " " + tipo + " a su inventario.");
+    }
+
+    public void entregarRecurso(Personaje receptor, String tipoRecurso, int cantidad) {
         // Buscar el recurso en el inventario personal
         for (Recurso recurso : inventario) {
             if (recurso.getTipo().equals(tipoRecurso) && recurso.getCantidad() >= cantidad) {
@@ -68,7 +88,8 @@ public class Recolector extends Personaje {
                     inventario.remove(recurso);
                 }
                 
-                System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + "(s) a " + receptor.getNombre() + ".");
+                System.out.println(nombre + " ha entregado " + cantidad + " " + tipoRecurso + 
+                                 "(s) a " + receptor.getNombre() + ".");
                 return;
             }
         }

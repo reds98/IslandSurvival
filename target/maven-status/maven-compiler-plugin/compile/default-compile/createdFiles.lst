@@ -1,1 +1,8 @@
+model\Curandero.class
+model\Personaje.class
+model\RecursosManager.class
+model\Refugio.class
 model\Dios.class
+model\Recurso.class
+model\Constructor.class
+model\Científico.class

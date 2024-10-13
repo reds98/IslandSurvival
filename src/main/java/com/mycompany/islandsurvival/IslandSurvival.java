@@ -632,37 +632,37 @@ private void defenderDeDepredador(String name) {
         }
     }
 
-   private void collectResources(String name) {
+ private void collectResources(String name) {
     Personaje personaje = personajes.get(name);
     Point position = getCharacterPosition(name);
+    
     if (position != null) {
-        List<Recurso> recursosEnPunto = recursosEnMapa.get(position);
-        if (recursosEnPunto != null && !recursosEnPunto.isEmpty()) {
-            Recurso recursoARecolectar = new Recurso(
-                recursosEnPunto.get(0).getTipo(), 
-                recursosEnPunto.get(0).getCantidad()
-            );
-            
-            if (personaje instanceof Explorador) {
+        if (personaje instanceof Recolector) {
+            recolectar(name);
+            return;
+        }
+        
+        if (personaje instanceof Explorador) {
+            List<Recurso> recursosEnPunto = recursosEnMapa.get(position);
+            if (recursosEnPunto != null && !recursosEnPunto.isEmpty()) {
+                Recurso recursoARecolectar = new Recurso(
+                    recursosEnPunto.get(0).getTipo(), 
+                    recursosEnPunto.get(0).getCantidad()
+                );
+                
                 ((Explorador) personaje).recolectar(recursoARecolectar);
                 recursosEnPunto.remove(0);
                 if (recursosEnPunto.isEmpty()) {
                     recursosEnMapa.remove(position);
                 }
-            } else if (personaje instanceof Recolector) {
-                ((Recolector) personaje).recolectar();
-                recursosEnPunto.remove(0);
-                if (recursosEnPunto.isEmpty()) {
-                    recursosEnMapa.remove(position);
-                }
+                
+                updateMapCell(position.x, position.y);
+                registrarEnBitacora(name, "Ha recolectado " + recursoARecolectar.getCantidad() + 
+                                  " " + recursoARecolectar.getTipo());
+                actualizarEstadoJuego();
+            } else {
+                JOptionPane.showMessageDialog(this, "No hay recursos para recolectar en esta posición.");
             }
-            
-            updateMapCell(position.x, position.y);
-            registrarEnBitacora(name, "Ha recolectado " + recursoARecolectar.getCantidad() + " " + 
-                              recursoARecolectar.getTipo());
-            actualizarEstadoJuego();
-        } else {
-            JOptionPane.showMessageDialog(this, "No hay recursos para recolectar en esta posición.");
         }
     }
 }
@@ -1104,14 +1104,49 @@ private void defenderDeDepredador(String name) {
     }
 
     private void recolectar(String name) {
-        Recolector recolector = (Recolector) personajes.get(name);
-        recolector.recolectar();
-        Point position = getCharacterPosition(name);
-        if (position != null) {
+    Recolector recolector = (Recolector) personajes.get(name);
+    Point position = getCharacterPosition(name);
+    
+    if (position != null && recolector.getNivelEnergia() >= 10) {
+        List<Recurso> recursosEnPunto = recursosEnMapa.get(position);
+        if (recursosEnPunto != null && !recursosEnPunto.isEmpty()) {
+            // Obtener el primer recurso del punto
+            Recurso recursoARecolectar = recursosEnPunto.get(0);
+            
+            // Añadir al inventario del recolector
+            recolector.agregarRecursoAInventario(recursoARecolectar.getTipo(), 
+                                               recursoARecolectar.getCantidad());
+            
+            // Eliminar el recurso del mapa
+            recursosEnPunto.remove(0);
+            if (recursosEnPunto.isEmpty()) {
+                recursosEnMapa.remove(position);
+            }
+            
+            // Reducir energía
+            recolector.reducirEnergia(10);
+            
+            // Registrar en bitácora
+            registrarEnBitacora(name, "Ha recolectado " + recursoARecolectar.getCantidad() + 
+                              " " + recursoARecolectar.getTipo());
+            
+            // Actualizar la interfaz
             updateMapCell(position.x, position.y);
+            actualizarEstadoJuego();
+        } else {
+            JOptionPane.showMessageDialog(this, 
+                "No hay recursos para recolectar en esta posición.",
+                "Recolección",
+                JOptionPane.INFORMATION_MESSAGE);
         }
-        registrarEnBitacora(name, "Ha realizado una acción de recolección");
+    } else if (recolector.getNivelEnergia() < 10) {
+        JOptionPane.showMessageDialog(this, 
+            "El recolector no tiene suficiente energía para recolectar (mínimo 10)",
+            "Energía insuficiente",
+            JOptionPane.WARNING_MESSAGE);
+        registrarEnBitacora(name, "Intentó recolectar pero no tenía suficiente energía");
     }
+}
 
     private void entregarRecurso(String name) {
         Recolector recolector = (Recolector) personajes.get(name);
@@ -1158,22 +1193,36 @@ private void defenderDeDepredador(String name) {
         }
     }
 
-    private void showStats(String name) {
-        Personaje personaje = personajes.get(name);
-        StringBuilder stats = new StringBuilder(personaje.toString());
-
-        stats.append("\n\nInventario Personal:");
-        List<Recurso> inventario = personaje.getInventario();
-        if (inventario.isEmpty()) {
-            stats.append("\n- Vacío");
-        } else {
-            for (Recurso recurso : inventario) {
-                stats.append("\n- ").append(recurso.getTipo()).append(": ").append(recurso.getCantidad());
-            }
-        }
-
-        JOptionPane.showMessageDialog(this, stats.toString());
+   private void showStats(String name) {
+    Personaje personaje = personajes.get(name);
+    StringBuilder stats = new StringBuilder();
+    
+    stats.append("Nombre: ").append(name).append("\n");
+    stats.append("Nivel de Energía: ").append(personaje.getNivelEnergia()).append("\n");
+    stats.append("Nivel de Salud: ").append(personaje.getNivelSalud()).append("\n");
+    
+    if (personaje instanceof Recolector) {
+        stats.append("Habilidad de recolección: ")
+             .append(((Recolector) personaje).getHabilidadRecoleccion())
+             .append("\n");
     }
+    
+    stats.append("\nInventario Personal:\n");
+    List<Recurso> inventario = personaje.getInventario();
+    if (inventario.isEmpty()) {
+        stats.append("- Vacío");
+    } else {
+        for (Recurso recurso : inventario) {
+            stats.append("- ").append(recurso.getTipo())
+                 .append(": ").append(recurso.getCantidad())
+                 .append("\n");
+        }
+    }
+
+    JOptionPane.showMessageDialog(this, stats.toString(), 
+        "Estadísticas de " + name, JOptionPane.INFORMATION_MESSAGE);
+}
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new IslandSurvival());
